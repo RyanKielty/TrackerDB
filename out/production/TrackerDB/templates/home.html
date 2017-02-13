@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <style>
+        h1 {text-align:center}
+        body {margin: 0 auto 16px auto}
+        body {border: 1px solid #000}
+        body {width: 320px}
+        body {padding: 16px}
+    </style>
+</head>
+<body>
+{{#userName}}
+<h3>
+    Hi {{.}}!<br>
+    <form action="/logout" method="post"><br>
+        <button type="submit">Logout</button>
+    </form>
+</h3>
+<h1>
+    Album Tracker:
+</h1>
+Fill the album information below:
+<br><br>
+<form action="/add-album" method="post">
+    <input type="text" placeholder="Title" name="albumTitle" required/><br>
+    <input type="text" placeholder="Artist" name="artist" required/><br>
+    <input type="text" placeholder="Release Year" name="releaseYear"/><br>
+    <button type="submit">Add Album</button>
+</form>
+<br>
+<form action="/edit-album" method="post">
+    <input type="text" placeholder="Album #" name="editAlbum" required/><br>
+    <input type="text" placeholder="Title" name="albumTitle" required/><br>
+    <input type="text" placeholder="Artist" name="artist" required/><br>
+    <input type="text" placeholder="Release Year" name="releaseYear"/><br>
+    <button type="submit">Make a Change</button>
+</form>
+<br>
+<form action="/remove-album" method="post">
+    <input type="text" placeholder="Remove which #" name="removeAlbum"/><br>
+    <button type="submit">Listened</button>
+</form>
+<br>
+<ol>
+    {{#albums}}
+    <li>
+        <b>Album:</b>  {{albumTitle}}<br>
+        <b>Artist:</b> {{artist}}<br>
+        <b>Year:</b>   {{releaseYear}}<br>
+    </li>
+    {{/albums}}
+</ol>
+
+
+{{/userName}}
+</body>
+</html>
