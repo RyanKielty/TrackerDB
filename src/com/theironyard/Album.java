@@ -5,12 +5,21 @@ package com.theironyard;
  */
 public class Album {
     int id;
+    int userId;
     String title;
     String artist;
     int releaseYear;
 
-    public Album(int id, String title, String artist, int releaseYear) {
+    public Album(int id, int userId, String title, String artist, int releaseYear) {
         this.id = id;
+        this.userId = userId;
+        this.title = title;
+        this.artist = artist;
+        this.releaseYear = releaseYear;
+    }
+
+    public Album(int userId, String title, String artist, int releaseYear) {
+        this.userId = userId;
         this.title = title;
         this.artist = artist;
         this.releaseYear = releaseYear;
@@ -21,12 +30,24 @@ public class Album {
         this.artist = artist;
         this.releaseYear = releaseYear;
     }
+
+    public Album() {
+    }
+
     public int getId() {
         return id;
     }
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
     public String getTitle() {

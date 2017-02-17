@@ -13,7 +13,7 @@ import java.util.HashMap;
 
 public class Main {
 
-    static HashMap<String, User> usersMap = new HashMap<>();
+//    static HashMap<String, User> usersMap = new HashMap<>();
 
     public static void main(String[] args) throws SQLException {
         Server.createWebServer().start();
@@ -26,15 +26,17 @@ public class Main {
                 ((request, response) -> {
                     Session session = request.session();
                     String userName = session.attribute("userName");
+                    String password = session.attribute("password");
 
-                    User user = usersMap.get(userName);
+                    User user = selectUser(connect, userName);
 
                     HashMap data = new HashMap();
 
-                    if(userName == null) {
+                    if(userName == null ) {
                         return new ModelAndView(data, "login.html");
                     } else {
                         data.put("userName", userName);
+                        data.put("password", password);
                         data.put("albums", user.albumsList);
                         return new ModelAndView(data, "home.html");
                     }
@@ -44,14 +46,17 @@ public class Main {
         Spark.post(
                 "/login",
                 ((request, response) -> {
-                    String userName = request.queryParams("loginName");
+                    String userName = request.queryParams("userName");
+                    String password = request.queryParams("password");
                     if (userName == null || userName.isEmpty()) {
                         throw new Exception("Login name not found.");
                     }
-                    User user = usersMap.get(userName);
+                    if (password.isEmpty()) {
+                        throw new Exception("Password required");
+                    }
+                    User user = selectUser(connect, userName);
                     if (user == null) {
-                        user = new User(userName);
-                        usersMap.put(userName, user);
+                        insertUser(connect, userName, password);
                     }
                     Session session = request.session();
                     session.attribute("userName", userName);
@@ -73,7 +78,7 @@ public class Main {
                 ((request, response) -> {
                     Session session = request.session();
                     String userName = session.attribute("userName");
-                    User user = usersMap.get(userName);
+
 
                     if (userName == null) {
                         throw new Exception("Shame on you, login!");
@@ -92,8 +97,8 @@ public class Main {
                         throw new Exception("Invalid release year");
                     }
 
-                    Album addAlbum = new Album(title, artist, releaseYear);
-                    user.albumsList.add(addAlbum);
+                    User user = selectUser(connect, userName);
+                    insertAlbum(connect, user.id, title, artist, releaseYear);
 
                     response.redirect("/");
                     return "";
@@ -104,11 +109,11 @@ public class Main {
                 ((request, response) -> {
                     Session session = request.session();
                     String userName = session.attribute("userName");
-                    User user = usersMap.get(userName);
+                    User user = selectUser(connect, userName);
 
                     String removeAlbum = request.queryParams("removeAlbum");
 
-                    user.albumsList.remove(Integer.parseInt(removeAlbum)-1);
+                    deleteAlbum(connect, Integer.parseInt(removeAlbum));
 
                     response.redirect("/");
                     return "";
@@ -119,7 +124,7 @@ public class Main {
                 ((request, response) -> {
                     Session session = request.session();
                     String userName = session.attribute("userName");
-                    User user = usersMap.get(userName);
+                    User user = selectUser(connect, userName);
 
                     String title = request.queryParams("title");
                     if (title == null) {
@@ -136,8 +141,7 @@ public class Main {
 
                     String editAlbum = request.queryParams("editAlbum");
 
-                    user.albumsList.remove(Integer.parseInt(editAlbum)-1);
-                    user.albumsList.add(Integer.parseInt(editAlbum)-1, new Album(title, artist, releaseYear));
+                    updateAlbum(connect, Integer.parseInt(editAlbum), title, artist, releaseYear);
 
                     response.redirect("/");
                     return "";
@@ -146,15 +150,17 @@ public class Main {
 
     }
 
-    private static void createTables(Connection connect) throws SQLException {
+
+
+    public static void createTables(Connection connect) throws SQLException {
         Statement statement = connect.createStatement();
         statement.execute("CREATE TABLE IF NOT EXISTS users (id IDENTITY, name VARCHAR, password VARCHAR)");
-        statement.execute("CREATE TABLE IF NOT EXISTS messages (id IDENTITY, album_title VARCHAR, album_artist VARCHAR, release_year INT)");
+        statement.execute("CREATE TABLE IF NOT EXISTS albums (id IDENTITY, user_id INT, album_title VARCHAR, album_artist VARCHAR, release_year INT)");
     }
 
-    public static void insertUser(Connection connect, String name, String password) throws SQLException {
+    public static void insertUser(Connection connect, String userName, String password) throws SQLException {
         PreparedStatement statement = connect.prepareStatement("INSERT INTO users VALUES (NULL, ?, ?)");
-        statement.setString(1, name);
+        statement.setString(1, userName);
         statement.setString(2, password);
         statement.execute();
     }
@@ -166,17 +172,20 @@ public class Main {
         if (results.next()) {
             int id = results.getInt("id");
             String password = results.getString("password");
-            return new User(id, userName, password);
+            ArrayList<Album> albums = albums(connect, id);
+
+            return new User(id, userName, password, albums);
         }
         return null;
     }
 
     public static void insertAlbum(Connection connect, int id, String title, String artist, int releaseYear) throws SQLException {
-        PreparedStatement statement = connect.prepareStatement("INSERT INTO albums VALUES (Null, ?, ?, ?, ?");
+        PreparedStatement statement = connect.prepareStatement("INSERT INTO albums VALUES (Null, ?, ?, ?, ?)");
         statement.setInt(1, id);
         statement.setString(2, title);
         statement.setString(3, artist);
         statement.setInt(4, releaseYear);
+        statement.execute();
     }
 
     public static Album selectAlbum(Connection connect, int id) throws SQLException {
@@ -193,24 +202,32 @@ public class Main {
         return null;
     }
 
-
-    public static ArrayList<Album> selectAlbums(Connection connect, int id) throws SQLException {
+//
+    public static ArrayList<Album> albums(Connection connect, int id) throws SQLException {
         ArrayList<Album> albums = new ArrayList<>();
-        PreparedStatement statement = connect.prepareStatement("SELECT * FROM albums INNER JOIN users ON album.user_id = users.id WHERE albums.id = ?");
+        PreparedStatement statement = connect.prepareStatement("SELECT * FROM albums INNER JOIN users ON albums.user_id = users.id WHERE users.id = ?");
         statement.setInt(1, id);
         ResultSet results = statement.executeQuery();
         while (results.next()) {
             int albumsId = results.getInt("albums.id");
-            String title = results.getString("albums.title");
-            String artist = results.getString("albums.artist");
-            int releaseYear = results.getInt("albums.releaseYear");
-            Album album = new Album(albumsId, title, artist, releaseYear);
+            int userId = results.getInt("albums.user_id");
+            String title = results.getString("albums.album_title");
+            String artist = results.getString("albums.album_artist");
+            int releaseYear = results.getInt("albums.release_year");
+            Album album = new Album(albumsId, userId, title, artist, releaseYear);
             albums.add(album);
         }
         return albums;
     }
 
-    public static void updateAlbum() throws SQLException {
+    public static void updateAlbum(Connection connect, int id, String title, String artist, int releaseYear) throws SQLException {
+        PreparedStatement statement = connect.prepareStatement("UPDATE ALBUMS SET album_artist = ?, album_title = ?, release_year = ? WHERE id = ?");
+        statement.setString(1, artist);
+        statement.setString(2, title);
+        statement.setInt(3, releaseYear);
+        statement.setInt(4, id);
+
+        statement.execute();
 
     }
 

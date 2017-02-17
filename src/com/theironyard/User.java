@@ -28,6 +28,13 @@ public class User {
         this.password = password;
     }
 
+    public User(int id, String userName, String password, ArrayList<Album> albumsList) {
+        this.id = id;
+        this.userName = userName;
+        this.password = password;
+        this.albumsList = albumsList;
+    }
+
     public String getUserName() {
         return userName;
     }
